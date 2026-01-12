@@ -1,9 +1,9 @@
 import Link from "next/link"
 import { CheckCircle, Clock, MapPin, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { getItemById } from "@/lib/api"
 import { ItemImage } from "./item-image"
+import { ClaimButton } from "./claim-button"
 
 export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -146,11 +146,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             </div>
 
             {/* Claim Button */}
-            <Card className="p-6 bg-blue-600 hover:bg-blue-700 transition-colors cursor-pointer">
-              <Button className="w-full bg-transparent hover:bg-white/10 text-white text-lg font-bold py-6" size="lg">
-                É MEU! (INICIAR REIVINDICAÇÃO)
-              </Button>
-            </Card>
+            <ClaimButton itemId={id} itemName={item.name} currentStatus={item.status} />
           </div>
         </div>
       </main>

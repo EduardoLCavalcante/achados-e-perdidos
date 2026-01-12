@@ -13,13 +13,15 @@ interface ItemWithDate {
 /**
  * Ordena itens por data de criação ou atualização (mais recente primeiro por padrão)
  */
-export function sortItemsByDate<T extends ItemWithDate>(items: T[], order: "asc" | "desc" = "desc"): T[] {
+export function sortItemsByDate<T extends ItemWithDate>(
+  items: T[],
+  order: "asc" | "desc" = "desc"
+): T[] {
   if (!Array.isArray(items) || items.length === 0) {
     return []
   }
 
   return [...items].sort((a, b) => {
-    // Usa updatedAt se disponível, caso contrário usa createdAt
     const dateA = new Date(a.updatedAt || a.createdAt).getTime()
     const dateB = new Date(b.updatedAt || b.createdAt).getTime()
 

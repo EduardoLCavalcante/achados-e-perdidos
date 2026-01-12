@@ -3,6 +3,7 @@ import Link from "next/link"
 import { MapPin, Calendar, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { ClaimButton } from "./claim-button"
 
 export default async function PerdidoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -25,7 +26,7 @@ export default async function PerdidoDetailPage({ params }: { params: Promise<{ 
     )
   }
 
-  const statusMap: Record<string, string> = {
+  const statusMap = {
     registered: "Registrado",
     analyzing: "Em Analise/Aguardando",
     returned: "Devolvido",
@@ -52,10 +53,10 @@ export default async function PerdidoDetailPage({ params }: { params: Promise<{ 
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">{item.name}</h1>
                 <div className="flex items-center gap-2">
                   <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
-                    {statusMap[item.status] || item.status}
+                    {statusMap[item.status]}
                   </span>
                   <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
-                    {item.type}
+                    {item.type === "lost" ? "PERDIDO" : "ACHADO"}
                   </span>
                 </div>
               </div>
@@ -125,9 +126,9 @@ export default async function PerdidoDetailPage({ params }: { params: Promise<{ 
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white py-6 text-lg font-semibold">
-              Tenho esse Item!
-            </Button>
+            <div className="flex-1">
+              <ClaimButton itemId={id} itemName={item.name} />
+            </div>
             <Link href="/buscar" className="flex-1">
               <Button variant="outline" className="w-full py-6 text-lg font-semibold bg-transparent">
                 Ver Todos os Itens

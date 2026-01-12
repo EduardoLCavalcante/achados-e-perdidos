@@ -27,11 +27,21 @@ export default function BuscarPage() {
   const [itemType, setItemType] = useState<"all" | "found" | "lost">("all")
   const [sortOrder, setSortOrder] = useState<"recent" | "oldest">("recent")
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadItems = async () => {
       try {
+        console.log("[v0] Starting to load items from API...")
         const allItems = await getAllItems()
+        console.log("[v0] Received items:", allItems.length)
+
+        if (!allItems || allItems.length === 0) {
+          setError("Nenhum item encontrado. Certifique-se de que o backend está rodando em http://localhost:4000")
+          setItems([])
+          return
+        }
+
         const transformed = allItems.map((item) => ({
           id: String(item.id),
           name: item.name,
@@ -43,8 +53,10 @@ export default function BuscarPage() {
           type: item.type === "found" ? ("found" as const) : ("lost" as const),
         }))
         setItems(transformed)
+        setError(null)
       } catch (error) {
         console.error("[v0] Error loading items:", error)
+        setError("Erro ao carregar itens. Verifique se o backend está rodando.")
       } finally {
         setIsLoading(false)
       }
@@ -79,6 +91,43 @@ export default function BuscarPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Carregando itens...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b">
+          <div className="container mx-auto px-4 py-4">
+            <Link href="/" className="text-2xl font-bold">
+              Achados & Perdidos
+            </Link>
+          </div>
+        </header>
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-md mx-auto text-center">
+            <div className="bg-destructive/10 text-destructive p-6 rounded-lg">
+              <h2 className="text-xl font-semibold mb-2">Erro ao Carregar Itens</h2>
+              <p className="mb-4">{error}</p>
+              <div className="text-sm text-left bg-background p-4 rounded border">
+                <p className="font-mono mb-2">Passos para resolver:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Verifique se o backend está rodando</li>
+                  <li>
+                    Execute: <code className="bg-muted px-1">cd backend && npm run dev</code>
+                  </li>
+                  <li>
+                    O backend deve estar em <code className="bg-muted px-1">http://localhost:4000</code>
+                  </li>
+                </ol>
+              </div>
+              <Button onClick={() => window.location.reload()} className="mt-4">
+                Tentar Novamente
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
