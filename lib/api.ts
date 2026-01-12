@@ -1,21 +1,20 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
 
 export interface Item {
-  title: string | undefined
-  imageUrl: string
-  id: string // Backend uses string IDs
-  name: string // Backend uses 'name' not 'title'
+  id: string
+  name: string
   description: string
   category: string
   color: string
   location: string
   date: string
   image: string
-  type: "lost" | "found" // Backend uses lowercase
-  status: "registered" | "analyzing" | "returned" // Backend uses lowercase
+  type: "lost" | "found"
+  status: "registered" | "analyzing" | "returned"
   contactName?: string
   contactEmail?: string
   createdAt: string
+  updatedAt?: string // Adicionar updatedAt para rastreamento de atualizações
 }
 
 interface ApiResponse<T> {
@@ -38,12 +37,36 @@ export interface CreateItemDTO {
   contactEmail?: string
 }
 
-// Fetch all items
-export async function getAllItems(): Promise<Item[]> {
+export interface GetItemsParams {
+  type?: "lost" | "found"
+  category?: string
+  color?: string
+  status?: string
+  search?: string
+  sortBy?: "createdAt" | "date" | "name"
+  order?: "asc" | "desc"
+  limit?: number
+}
+
+export async function getAllItems(params?: GetItemsParams): Promise<Item[]> {
   try {
-    console.log("[v0] Fetching all items from API")
-    const response = await fetch(`${API_BASE_URL}/api/items`, {
-      next: { revalidate: 60 },
+    console.log("[v0] Fetching items from API with params:", params)
+
+    const queryParams = new URLSearchParams()
+
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+
+    const url = `${API_BASE_URL}/api/items${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
+    console.log("[v0] Requesting URL:", url)
+
+    const response = await fetch(url, {
+      next: { revalidate: 30 }, // Reduzir cache para 30s para dados mais atualizados
     })
 
     if (!response.ok) {
@@ -51,7 +74,7 @@ export async function getAllItems(): Promise<Item[]> {
     }
 
     const result: ApiResponse<Item[]> = await response.json()
-    console.log("[v0] API Response:", result)
+    console.log("[v0] API Response - Total items:", result.data?.length || 0)
     return result.data || []
   } catch (error) {
     console.error("[API] Erro ao buscar todos os itens:", error)
@@ -140,4 +163,13 @@ export async function deleteItem(id: string): Promise<boolean> {
     console.error(`[API] Erro ao deletar item ${id}:`, error)
     return false
   }
+}
+
+export async function getRecentItems(type?: "lost" | "found", limit = 4): Promise<Item[]> {
+  return getAllItems({
+    type,
+    sortBy: "createdAt",
+    order: "desc",
+    limit,
+  })
 }

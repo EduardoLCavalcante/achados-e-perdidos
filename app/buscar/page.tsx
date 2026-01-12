@@ -2,45 +2,68 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { getAllItems } from "@/lib/api"
+import { sortItemsByDate, isNewItem, getRelativeTime } from "@/lib/utils"
 
-const colors = [
-  { name: "Preto", class: "bg-black" },
-  { name: "Vermelho", class: "bg-red-500" },
-  { name: "Amarelo", class: "bg-yellow-400" },
-  { name: "Verde", class: "bg-green-500" },
-  { name: "Azul", class: "bg-blue-500" },
-  { name: "Branco", class: "bg-white border border-gray-300" },
-  { name: "Prata", class: "bg-gray-400" }, // Adicionei Prata pois tem no mock
-  { name: "Marrom", class: "bg-amber-800" }, // Adicionei Marrom pois tem no mock
-]
-
-// Lista expandida para incluir as categorias do Mock
-const categoriesList = ["Eletronicos", "Roupas", "Documentos", "Acessórios", "Utensílios", "Material Escolar", "Outros"]
+type Item = {
+  id: string
+  name: string
+  category: string
+  location: string
+  date: string
+  image: string
+  color: string
+  type: "found" | "lost"
+}
 
 export default function BuscarPage() {
-  const [allItems, setAllItems] = useState<any[]>([])
-  
-  // URL base para imagens relativas
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
-
-  useEffect(() => {
-    getAllItems().then((data) => {
-        // Garante que é array
-        setAllItems(Array.isArray(data) ? data : [])
-    })
-  }, [])
-
-  const [viewMode, setViewMode] = useState<"lista" | "mapa">("lista")
-  
-  // CORREÇÃO 1: Começa com array VAZIO para mostrar TUDO inicialmente
+  const [items, setItems] = useState<Item[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedColors, setSelectedColors] = useState<string[]>([])
-  const [itemType, setItemType] = useState<"all" | "ACHADO" | "PERDIDO">("all")
+  const [itemType, setItemType] = useState<"all" | "found" | "lost">("all")
+  const [sortOrder, setSortOrder] = useState<"recent" | "oldest">("recent")
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadItems = async () => {
+      try {
+        const allItems = await getAllItems()
+        const transformed = allItems.map((item) => ({
+          id: String(item.id),
+          name: item.name,
+          category: item.category || "Outros",
+          location: item.location,
+          date: item.date,
+          image: item.image,
+          color: item.color || "Preto",
+          type: item.type === "found" ? ("found" as const) : ("lost" as const),
+        }))
+        setItems(transformed)
+      } catch (error) {
+        console.error("[v0] Error loading items:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadItems()
+  }, [])
+
+  const filteredItems = items
+    .filter((item) => {
+      const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(item.category)
+      const colorMatch = selectedColors.length === 0 || selectedColors.includes(item.color)
+      const typeMatch = itemType === "all" || item.type === itemType
+      return categoryMatch && colorMatch && typeMatch
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+      return sortOrder === "recent" ? dateB - dateA : dateA - dateB
+    })
 
   const toggleCategory = (category: string) => {
     setSelectedCategories((prev) =>
@@ -48,239 +71,159 @@ export default function BuscarPage() {
     )
   }
 
-  const filteredItems = (Array.isArray(allItems) ? allItems : []).filter((item) => {
-    // Lógica de Categoria (Case insensitive para evitar erros de digitação)
-    const categoryMatch = selectedCategories.length === 0 || selectedCategories.some(c => c.toLowerCase() === item.category?.toLowerCase())
-    
-    // Lógica de Cor
-    const colorMatch = selectedColors.length === 0 || selectedColors.some(c => c.toLowerCase() === item.color?.toLowerCase())
-    
-    // CORREÇÃO 2: Normalizando o Tipo (backend envia 'found', front espera 'ACHADO')
-    const itemTypeNormalized = item.type === "found" ? "ACHADO" : item.type === "lost" ? "PERDIDO" : item.type
-    
-    const typeMatch = itemType === "all" || 
-                      (itemType === "ACHADO" && itemTypeNormalized === "ACHADO") || 
-                      (itemType === "PERDIDO" && itemTypeNormalized === "PERDIDO")
+  const toggleColor = (color: string) => {
+    setSelectedColors((prev) => (prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]))
+  }
 
-    return categoryMatch && colorMatch && typeMatch
-  })
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Carregando itens...</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto">
-          <Link href="/" className="text-2xl font-bold text-gray-800 hover:text-gray-600">
-            Achados <span className="text-gray-400">&</span> Perdidos
+    <div className="min-h-screen bg-background">
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4">
+          <Link href="/" className="text-2xl font-bold">
+            Achados & Perdidos
           </Link>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Sidebar Filters */}
-          <aside className="w-full md:w-80 flex-shrink-0">
-            <div className="bg-white rounded-lg p-6 space-y-6 sticky top-8">
-              <h2 className="text-xl font-bold text-gray-800">Filtrar por:</h2>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          <aside className="lg:w-64 space-y-6">
+            <div>
+              <h3 className="font-semibold mb-4">Filtrar por:</h3>
 
-              {/* Category Filter */}
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-3 flex items-center">
-                  <Checkbox
-                    id="categoria-all"
-                    checked={selectedCategories.length === 0}
-                    onCheckedChange={() => setSelectedCategories([])} // Limpar filtros = Selecionar todos
-                    className="mr-2"
-                  />
-                  <Label htmlFor="categoria-all" className="cursor-pointer">
-                    Todas as Categorias
-                  </Label>
-                </h3>
-                <div className="space-y-2 ml-6 max-h-60 overflow-y-auto">
-                  {categoriesList.map((category) => (
-                    <div key={category} className="flex items-center">
-                      <Checkbox
-                        id={category}
-                        checked={selectedCategories.includes(category)}
-                        onCheckedChange={() => toggleCategory(category)}
-                        className="mr-2"
-                      />
-                      <Label htmlFor={category} className="cursor-pointer text-sm">
-                        {category}
-                      </Label>
-                    </div>
-                  ))}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Tipo</h4>
+                  <div className="space-y-2">
+                    <Button
+                      variant={itemType === "all" ? "default" : "outline"}
+                      className="w-full"
+                      onClick={() => setItemType("all")}
+                    >
+                      Todos
+                    </Button>
+                    <Button
+                      variant={itemType === "found" ? "default" : "outline"}
+                      className="w-full"
+                      onClick={() => setItemType("found")}
+                    >
+                      Achados
+                    </Button>
+                    <Button
+                      variant={itemType === "lost" ? "default" : "outline"}
+                      className="w-full"
+                      onClick={() => setItemType("lost")}
+                    >
+                      Perdidos
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Color Filter */}
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-3">Cor Predominante</h3>
-                <div className="grid grid-cols-6 gap-3">
-                  {colors.map((color) => (
-                    <button
-                      key={color.name}
-                      onClick={() => {
-                        setSelectedColors((prev) =>
-                          prev.includes(color.name) ? prev.filter((c) => c !== color.name) : [...prev, color.name],
-                        )
-                      }}
-                      className={`w-10 h-10 rounded-md ${color.class} ${
-                        selectedColors.includes(color.name)
-                          ? "ring-2 ring-blue-500 ring-offset-2"
-                          : "hover:ring-2 hover:ring-gray-300"
-                      }`}
-                      title={color.name}
-                    />
-                  ))}
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Categoria</h4>
+                  <div className="space-y-2">
+                    {["Eletronicos", "Roupas", "Documentos", "Outros"].map((category) => (
+                      <div key={category} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={category}
+                          checked={selectedCategories.includes(category)}
+                          onCheckedChange={() => toggleCategory(category)}
+                        />
+                        <Label htmlFor={category}>{category}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Item Type Filter */}
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-3">Tipo de Item</h3>
-                <div className="space-y-2">
-                  <Button
-                    variant={itemType === "all" ? "default" : "outline"}
-                    onClick={() => setItemType("all")}
-                    className="w-full justify-start"
-                  >
-                    Todos
-                  </Button>
-                  <Button
-                    variant={itemType === "ACHADO" ? "default" : "outline"}
-                    onClick={() => setItemType("ACHADO")}
-                    className="w-full justify-start"
-                  >
-                    Itens Achados
-                  </Button>
-                  <Button
-                    variant={itemType === "PERDIDO" ? "default" : "outline"}
-                    onClick={() => setItemType("PERDIDO")}
-                    className="w-full justify-start"
-                  >
-                    Itens Perdidos
-                  </Button>
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Cor Predominante</h4>
+                  <div className="space-y-2">
+                    {[
+                      { name: "Preto", color: "bg-black" },
+                      { name: "Vermelho", color: "bg-red-500" },
+                      { name: "Amarelo", color: "bg-yellow-500" },
+                      { name: "Verde", color: "bg-green-500" },
+                      { name: "Azul", color: "bg-blue-500" },
+                      { name: "Branco", color: "bg-white border" },
+                    ].map(({ name, color }) => (
+                      <div key={name} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={name}
+                          checked={selectedColors.includes(name)}
+                          onCheckedChange={() => toggleColor(name)}
+                        />
+                        <Label htmlFor={name} className="flex items-center gap-2">
+                          <span className={`w-4 h-4 rounded ${color}`} />
+                          {name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </aside>
 
-          {/* Main Content */}
           <main className="flex-1">
-            {/* View Toggle */}
-            <div className="bg-white rounded-lg p-4 mb-6 flex items-center justify-between">
-              <span className="text-gray-700 font-medium">
-                {filteredItems.length} itens encontrados
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === "lista" ? "default" : "outline"}
-                  onClick={() => setViewMode("lista")}
-                  className="rounded-full"
-                >
-                  Lista
-                </Button>
-                <Button
-                  variant={viewMode === "mapa" ? "default" : "outline"}
-                  onClick={() => setViewMode("mapa")}
-                  className="rounded-full"
-                >
-                  Mapa Interativo
-                </Button>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Todos os Itens</h2>
+                <p className="text-muted-foreground">{filteredItems.length} itens encontrados</p>
               </div>
+              <Button variant="outline" onClick={() => setSortOrder(sortOrder === "recent" ? "oldest" : "recent")}>
+                {sortOrder === "recent" ? "Mais Recentes Primeiro" : "Mais Antigos Primeiro"}
+              </Button>
             </div>
 
-            {/* Items Grid */}
             {filteredItems.length === 0 ? (
-               <div className="text-center py-20 bg-white rounded-lg">
-                 <p className="text-gray-500 text-lg">Nenhum item encontrado com esses filtros.</p>
-                 <Button 
-                   variant="link" 
-                   onClick={() => {
-                     setSelectedCategories([])
-                     setSelectedColors([])
-                     setItemType("all")
-                   }}
-                   className="text-blue-500"
-                 >
-                   Limpar Filtros
-                 </Button>
-               </div>
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Nenhum item encontrado com os filtros selecionados.</p>
+              </div>
             ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems.map((item) => {
-                 // Normaliza o tipo para exibição
-                 const isLost = item.type === "PERDIDO" || item.type === "lost";
-                 
-                 // CORREÇÃO 3: Lógica segura de imagem (Unsplash ou Upload local)
-                 const imageUrl = item.image?.startsWith("http") 
-                    ? item.image 
-                    : item.image 
-                        ? `${API_BASE_URL}${item.image}` 
-                        : "/placeholder.svg";
-
-                 return (
-                <Link key={item.id} href={isLost ? `/perdido/${item.id}` : `/item/${item.id}`}>
-                  <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
-                    <div className="aspect-square bg-gray-100 relative">
-                      {/* Item Type Badge */}
-                      <div className="absolute top-2 right-2 z-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems.map((item) => (
+                  <Link key={item.id} href={item.type === "found" ? `/item/${item.id}` : `/perdido/${item.id}`}>
+                    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+                      <div className="aspect-square relative bg-muted">
+                        <img
+                          src={item.image || "/placeholder.svg"}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                        {isNewItem(item.date) && (
+                          <span className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                            NOVO
+                          </span>
+                        )}
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold mb-2">{item.name}</h3>
+                        <p className="text-sm text-muted-foreground mb-1">Local: {item.location}</p>
+                        <p className="text-sm text-muted-foreground">Data: {getRelativeTime(item.date)}</p>
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            isLost ? "bg-orange-500 text-white" : "bg-green-500 text-white"
+                          className={`inline-block mt-2 px-2 py-1 text-xs rounded ${
+                            item.type === "found" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                           }`}
                         >
-                          {isLost ? "Perdido" : "Achado"}
+                          {item.type === "found" ? "ACHADO" : "PERDIDO"}
                         </span>
-                      </div>
-                      <img
-                        src={imageUrl}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                            // Fallback se a imagem falhar
-                            e.currentTarget.src = "https://placehold.co/400x400?text=Sem+Imagem"
-                        }}
-                      />
-                    </div>
-                    <div className="p-4 space-y-2 flex-1">
-                      <h4 className="font-semibold text-gray-800 line-clamp-1">{item.name}</h4>
-                      <div className="flex items-start space-x-2 text-sm text-gray-600">
-                        <MapPinIcon />
-                        <span className="line-clamp-1">Local: {item.location}</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <CalendarIcon />
-                        <span>Data: {new Date(item.date).toLocaleDateString('pt-BR')}</span>
-                      </div>
-                    </div>
-                  </Card>
-                </Link>
-              )})}
-            </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
             )}
           </main>
         </div>
       </div>
     </div>
   )
-}
-
-// Icon Components para não poluir o código principal
-function MapPinIcon() {
-    return (
-        <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-    )
-}
-
-function CalendarIcon() {
-    return (
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-    )
 }
