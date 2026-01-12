@@ -1,29 +1,34 @@
-// REMOVA ESTA LINHA SE FOR NEXT.JS 15 (SERVER COMPONENT)
-// Na verdade, como seu código usa 'async', NÃO pode ter "use client".
-// O código abaixo é a versão correta (Server Component):
-
 import { getItemById } from "@/lib/api"
 import Link from "next/link"
-import Image from "next/image" // Importante para otimização
-import { MapPin, Calendar, Info, MessageCircle } from "lucide-react"
+import { MapPin, Calendar, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
 export default async function PerdidoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const item = await getItemById(Number.parseInt(id))
+
+  console.log("[v0] Loading perdido page for ID:", id)
+  const item = await getItemById(id)
+  console.log("[v0] Item loaded:", item)
 
   if (!item) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-800 mb-4">Item não encontrado</h1>
+          <p className="text-gray-600 mb-4">ID buscado: {id}</p>
           <Link href="/buscar">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white">Voltar para Busca</Button>
           </Link>
         </div>
       </div>
     )
+  }
+
+  const statusMap: Record<string, string> = {
+    registered: "Registrado",
+    analyzing: "Em Analise/Aguardando",
+    returned: "Devolvido",
   }
 
   return (
@@ -39,98 +44,103 @@ export default async function PerdidoDetailPage({ params }: { params: Promise<{ 
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <Card className="overflow-hidden"> {/* Adicionado overflow-hidden para a imagem respeitar a borda */}
-          
-          {/* SEÇÃO DA IMAGEM (Adicionada de volta) */}
-          <div className="relative w-full h-96 bg-gray-200">
-             {/* Usando <img> normal se não tiver o domínio configurado no next.config.js, 
-                 ou <Image fill /> se estiver configurado */}
-             <img 
-               src={item.imageUrl || "/placeholder.svg"} 
-               alt={item.title}
-               className="w-full h-full object-cover"
-             />
-          </div>
-
-          <div className="p-8">
-            {/* Header do Item */}
-            <div className="border-b border-gray-200 pb-6 mb-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-800 mb-2">{item.title}</h1>
+        <Card className="p-8">
+          {/* Header */}
+          <div className="border-b border-gray-200 pb-6 mb-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">{item.name}</h1>
+                <div className="flex items-center gap-2">
                   <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
-                    {item.status}
+                    {statusMap[item.status] || item.status}
+                  </span>
+                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
+                    {item.type}
                   </span>
                 </div>
-                {/* ID discreto para referência */}
-                <span className="text-gray-400 text-sm">ID: #{item.id}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Details Grid */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {/* Category */}
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <Info className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-500 uppercase">Categoria</p>
+                <p className="text-lg text-gray-800">{item.category}</p>
               </div>
             </div>
 
-            {/* Details Grid */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {/* Location */}
+            {/* Location */}
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-500 uppercase">Local</p>
+                <p className="text-lg text-gray-800">{item.location}</p>
+              </div>
+            </div>
+
+            {/* Date */}
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <Calendar className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-500 uppercase">Data</p>
+                <p className="text-lg text-gray-800">{item.date}</p>
+              </div>
+            </div>
+
+            {/* Color */}
+            {item.color && (
               <div className="flex items-start space-x-3">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-5 h-5 text-red-600" />
+                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                  <div
+                    className="w-5 h-5 rounded-full border-2 border-gray-400"
+                    style={{ backgroundColor: item.color }}
+                  />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-500 uppercase">Local</p>
-                  <p className="text-lg text-gray-800">{item.location}</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase">Cor</p>
+                  <p className="text-lg text-gray-800 capitalize">{item.color}</p>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Date */}
-              <div className="flex items-start space-x-3">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <Calendar className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-500 uppercase">Data</p>
-                  {/* Formata a data para ficar legível */}
-                  <p className="text-lg text-gray-800">
-                    {new Date(item.date).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              </div>
+          {/* Description */}
+          <div className="mb-8">
+            <div className="flex items-center space-x-2 mb-3">
+              <Info className="w-5 h-5 text-gray-600" />
+              <h2 className="text-xl font-bold text-gray-800">Descrição</h2>
             </div>
+            <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">{item.description}</p>
+          </div>
 
-            {/* Description */}
-            <div className="mb-8">
-              <div className="flex items-center space-x-2 mb-3">
-                <Info className="w-5 h-5 text-gray-600" />
-                <h2 className="text-xl font-bold text-gray-800">Descrição</h2>
-              </div>
-              <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-100">
-                {item.description}
-              </p>
-            </div>
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white py-6 text-lg font-semibold">
+              Tenho esse Item!
+            </Button>
+            <Link href="/buscar" className="flex-1">
+              <Button variant="outline" className="w-full py-6 text-lg font-semibold bg-transparent">
+                Ver Todos os Itens
+              </Button>
+            </Link>
+          </div>
 
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              {/* Transformamos o botão em Link para funcionar sem JavaScript (Client Side) */}
-              <Link 
-                href={`https://wa.me/5588999999999?text=Olá, encontrei o item: ${item.title}`} 
-                target="_blank"
-                className="flex-1"
-              >
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg font-semibold gap-2">
-                  <MessageCircle className="w-5 h-5" />
-                  Tenho esse Item!
-                </Button>
-              </Link>
-              
-              <Link href="/buscar" className="flex-1">
-                <Button variant="outline" className="w-full py-6 text-lg font-semibold bg-transparent">
-                  Ver Todos os Itens
-                </Button>
-              </Link>
-            </div>
-
-            {/* Info Box */}
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-                <strong>Dica de Segurança:</strong> Marque encontros em locais públicos e movimentados, como na portaria da universidade.
-            </div>
+          {/* Info Box */}
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">
+              <strong>Importante:</strong> Se você encontrou este item, clique em "Tenho esse Item!" para entrar em
+              contato com o proprietário.
+            </p>
           </div>
         </Card>
       </main>

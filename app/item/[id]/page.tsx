@@ -3,45 +3,21 @@ import { CheckCircle, Clock, MapPin, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { getItemById } from "@/lib/api"
-
-// Mock item details
-const itemDetails: Record<string, any> = {
-  "1": {
-    id: 1,
-    name: "Carteira de Couro Preta",
-    image: "/images/tela2.png",
-    location: "Bloco C, Proximo a Cantina",
-    date: "15/10/2023",
-    status: "Em Analise/Aguardando",
-    description: "Carteira de couro preta encontrada próxima à cantina do Bloco C",
-  },
-  "2": {
-    id: 2,
-    name: "Garrafa Térmica",
-    image: "/stainless-steel-bottle.png",
-    location: "Bloco B, Cantina",
-    date: "19/10/2023",
-    status: "Registrado",
-    description: "Garrafa térmica em aço inoxidável",
-  },
-}
-
-const statusSteps = [
-  { label: "Registrado", icon: CheckCircle, status: "complete" },
-  { label: "Em Analise/Aguardando", icon: Clock, status: "current" },
-  { label: "Devolvido", icon: CheckCircle, status: "pending" },
-]
+import { ItemImage } from "./item-image"
 
 export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const item = await getItemById(Number.parseInt(id))
+  console.log("[v0] Loading item with ID:", id)
+  const item = await getItemById(id)
+  console.log("[v0] Item received:", item)
 
   if (!item) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-800 mb-4">Item não encontrado</h1>
+          <p className="text-gray-600 mb-6">O item #{id} não foi encontrado ou não existe mais.</p>
           <Link href="/buscar">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white">Voltar para Busca</Button>
           </Link>
@@ -51,20 +27,37 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
   }
 
   const getStepStatus = (stepLabel: string) => {
-    if (item.status === "Registrado") {
+    const statusMap: Record<string, string> = {
+      registered: "Registrado",
+      analyzing: "Em Analise/Aguardando",
+      returned: "Devolvido",
+    }
+
+    const currentStatus = statusMap[item.status] || "Registrado"
+
+    if (currentStatus === "Registrado") {
       if (stepLabel === "Registrado") return "complete"
       return "pending"
     }
-    if (item.status === "Em Analise/Aguardando") {
+    if (currentStatus === "Em Analise/Aguardando") {
       if (stepLabel === "Registrado") return "complete"
       if (stepLabel === "Em Analise/Aguardando") return "current"
       return "pending"
     }
-    if (item.status === "Devolvido") {
+    if (currentStatus === "Devolvido") {
       return "complete"
     }
     return "pending"
   }
+
+  const statusSteps = [
+    { label: "Registrado", icon: CheckCircle, status: "complete" },
+    { label: "Em Analise/Aguardando", icon: Clock, status: "current" },
+    { label: "Devolvido", icon: CheckCircle, status: "pending" },
+  ]
+
+  const imageUrl = item.image || "/placeholder.svg"
+  console.log("[v0] Using image URL:", imageUrl)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,18 +74,14 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
       <main className="max-w-5xl mx-auto px-6 py-12">
         <div className="grid md:grid-cols-2 gap-12">
           {/* Item Image */}
-          <div className="bg-white rounded-lg overflow-hidden shadow-sm">
-            <img
-              src={item.imageUrl || "/placeholder.svg"}
-              alt={item.title}
-              className="w-full aspect-square object-cover"
-            />
-          </div>
+          <ItemImage src={imageUrl} alt={item.name} />
 
           {/* Item Details */}
           <div className="space-y-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-4">{item.title}</h1>
+              <h1 className="text-3xl font-bold text-gray-800 mb-4">{item.name}</h1>
+
+              {item.description && <p className="text-gray-600 mb-6">{item.description}</p>}
 
               <div className="space-y-3">
                 <div className="flex items-center space-x-3 text-gray-700">
@@ -119,8 +108,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                   <div
                     className="h-full bg-green-500 transition-all"
                     style={{
-                      width:
-                        item.status === "Registrado" ? "0%" : item.status === "Em Analise/Aguardando" ? "50%" : "100%",
+                      width: item.status === "registered" ? "0%" : item.status === "analyzing" ? "50%" : "100%",
                     }}
                   />
                 </div>
