@@ -1,4 +1,4 @@
-"use client" // REMOVA ESTA LINHA SE FOR NEXT.JS 15 (SERVER COMPONENT)
+// REMOVA ESTA LINHA SE FOR NEXT.JS 15 (SERVER COMPONENT)
 // Na verdade, como seu código usa 'async', NÃO pode ter "use client".
 // O código abaixo é a versão correta (Server Component):
 
