@@ -21,6 +21,8 @@ export default function PerdiItemPage() {
   })
   const [preview, setPreview] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const mobileScreen = typeof window !== "undefined" && window.innerWidth < 640
+
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -206,7 +208,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                   type="submit"
                   className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-6 text-lg font-semibold"
                 >
-                  Registrar Item Perdido
+                  {mobileScreen ? "Registrar" : "Registrar Item Perdido"}
                 </Button>
                 <Link href="/">
                   <Button type="button" variant="outline" className="w-full py-6 text-lg font-semibold bg-transparent">
